@@ -1,0 +1,57 @@
+<?php
+/**
+ * Implements hook_menu()
+ */
+function cm_music_menu(){
+  $items['music'] = array(
+    'title' => '6 Music', 
+    'page callback' => 'cm_music_process',
+    'access arguments' => array('access content'), 
+    'type' => MENU_CALLBACK,
+  );
+  
+  return $items;
+}
+
+function cm_music_process(){
+  $xml = drupal_http_request('http://api.twitter.com/1/statuses/user_timeline.rss?screen_name=WhatsOn6Music');
+  
+  $data = new SimpleXMLElement($xml->data);
+  
+  foreach($data->channel->item AS $tweet){
+    $song = mc_music_santise($tweet);
+    
+    //Some code to do the look up on musicbrainz.org
+    $musicXML = drupal_http_request('http://musicbrainz.org/ws/2/release?limit=1&query=' . urlencode('artist:' . $song['artist'] . ' release:' . $song['track']));
+    
+    $musicData = new SimpleXMLElement($musicXML->data);
+    //$array[] = 'http://musicbrainz.org/ws/2/release?query=' . urlencode('artist:' . $song['artist'] . ' release:' . $song['track']);
+    
+    $return['track'] = strtolower((string) $musicData->{'release-list'}->release[0]->title[0]);
+    $return['artist'] = strtolower((string) $musicData->{'release-list'}->release[0]->{'artist-credit'}->{'name-credit'}->artist->name[0]);
+
+    if($return['track'] == $song['track'] && str_replace('the ', '', $return['artist']) == str_replace('the ', '', $song['artist'])){
+      $song['date'] = $musicData->{'release-list'}->release[0]->date;
+      print_r($song);
+    }
+  }
+  
+  return 'hello world';
+}
+
+/**
+ * A little function to return an array of artist and title
+ */
+function mc_music_santise($tweet = NULL){
+  $title = $tweet->title;
+  
+  $exploded = explode(' – ', $title);
+  $temp = explode(':', $exploded[0]);
+  $song['artist'] = strtolower(trim($temp[1]));
+  $temp = explode('http', $exploded[1]);
+  $song['track'] = strtolower(trim($temp[0]));
+  $song['posted'] = strtotime($tweet->pubDate);
+  
+  return $song;
+}
+

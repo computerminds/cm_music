@@ -1,0 +1,5 @@
+name = Cm Music
+package = Computerminds
+description = Consumes the 6Music twitter feed and tries to figure out the song dates
+core = 7.x
+files[] = cm_music.module
